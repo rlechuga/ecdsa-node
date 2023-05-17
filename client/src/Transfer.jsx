@@ -1,26 +1,65 @@
-import { useState } from "react";
-import server from "./server";
+/* eslint-disable linebreak-style */
+/* eslint-disable jsx-a11y/label-has-associated-control */
+import React, { useState } from 'react';
+import server from './server';
+import { formatWalletAddress } from '../../helpers/format';
+import crypto from './crypto';
 
-function Transfer({ address, setBalance }) {
-  const [sendAmount, setSendAmount] = useState("");
-  const [recipient, setRecipient] = useState("");
+// eslint-disable-next-line react/prop-types
+function Transfer({ sender, setSender }) {
+  const [sendAmount, setSendAmount] = useState('');
+  const initialRecipientState = {
+    address: '',
+    balance: 0,
+    privateKey: '',
+    username: '',
+  };
+  const [recipient, setRecipient] = useState(initialRecipientState);
 
   const setValue = (setter) => (evt) => setter(evt.target.value);
 
   async function transfer(evt) {
     evt.preventDefault();
 
+    const message = JSON.stringify({
+      recipient: recipient.address,
+      amount: parseInt(sendAmount, 10),
+    });
+
+    const signature = await crypto.signMessage(message, sender.privateKey);
+
     try {
       const {
-        data: { balance },
-      } = await server.post(`send`, {
-        sender: address,
-        amount: parseInt(sendAmount),
-        recipient,
+        data: { senderBalance, recipientBalance },
+      } = await server.post('send', {
+        signature,
+        message,
+        publicKey: sender.address,
       });
-      setBalance(balance);
+      setSender({ ...sender, balance: senderBalance });
+      setRecipient({ ...recipient, balance: recipientBalance });
     } catch (ex) {
-      alert(ex.response.data.message);
+      // eslint-disable-next-line no-alert
+      alert('Please check your wallet');
+      console.log(ex);
+    }
+  }
+
+  async function onChange(evt) {
+    const privateKey = evt.target.value.toLowerCase();
+    try {
+      const address = await crypto.recoverAddress(privateKey);
+      setRecipient({ ...recipient, privateKey, address });
+      if (address) {
+        const {
+          data: { balance, username },
+        } = await server.get(`balance/${address}`);
+        setRecipient({
+          ...recipient, address, balance, privateKey, username,
+        });
+      }
+    } catch (e) {
+      setRecipient({ ...initialRecipientState, privateKey });
     }
   }
 
@@ -34,17 +73,35 @@ function Transfer({ address, setBalance }) {
           placeholder="1, 2, 3..."
           value={sendAmount}
           onChange={setValue(setSendAmount)}
-        ></input>
+        />
       </label>
 
       <label>
-        Recipient
+        Recipient privateKey
         <input
-          placeholder="Type an address, for example: 0x2"
-          value={recipient}
-          onChange={setValue(setRecipient)}
-        ></input>
+          placeholder="Type recipient's private key"
+          value={recipient.privateKey}
+          onChange={onChange}
+        />
       </label>
+
+      <div className="display">
+        Recipient:
+        {' '}
+        {recipient.username || 'none'}
+      </div>
+
+      <div className="display">
+        Wallet Address:
+        {' '}
+        {recipient.address ? formatWalletAddress(recipient.address) : 'none'}
+      </div>
+
+      <div className="display">
+        Recipient Balance:
+        {' '}
+        {recipient.balance || '?'}
+      </div>
 
       <input type="submit" className="button" value="Transfer" />
     </form>

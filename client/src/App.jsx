@@ -1,21 +1,24 @@
-import Wallet from "./Wallet";
-import Transfer from "./Transfer";
-import "./App.scss";
-import { useState } from "react";
+/* eslint-disable linebreak-style */
+/* eslint-disable jsx-a11y/label-has-associated-control */
+import React, { useState } from 'react';
+import MetaMask from './MetaMask';
+import Wallet from './Wallet';
+import Transfer from './Transfer';
+import './App.scss';
 
 function App() {
-  const [balance, setBalance] = useState(0);
-  const [address, setAddress] = useState("");
+  const [sender, setSender] = useState({
+    address: '',
+    balance: 0,
+    privateKey: '',
+    username: '',
+  });
 
   return (
     <div className="app">
-      <Wallet
-        balance={balance}
-        setBalance={setBalance}
-        address={address}
-        setAddress={setAddress}
-      />
-      <Transfer setBalance={setBalance} address={address} />
+      <MetaMask sender={sender} setSender={setSender} />
+      <Wallet sender={sender} setSender={setSender} />
+      <Transfer sender={sender} setSender={setSender} />
     </div>
   );
 }
